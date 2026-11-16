@@ -1,0 +1,17 @@
+<%- | String $title,
+      Optional[String] $value,
+      Optional[Variant[Array, String]] $comment,
+| -%>
+# This file is being maintained by Puppet.
+# DO NOT EDIT
+
+<% if $comment =~ Array { -%>
+<% $comment.each |$line| { -%>
+# <%= $line %>
+<% } -%>
+<% } elsif $comment =~ String { -%>
+<% $comment.split(/(?<=\n)/).each |$line| { -%>
+# <%= $line.strip %>
+<% } -%>
+<% } -%>
+<%= $title %> = <%= $value %>

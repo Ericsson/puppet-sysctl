@@ -161,7 +161,15 @@ describe 'sysctl', type: :define do
           )
         end
       end
+      context 'with comment set to multi-line string' do
+        let(:params) { { comment: "test\n  ing  \n\nend\n" } }
 
+        it do
+          is_expected.to contain_file('/etc/sysctl.d/net.ipv4.ip_forward.conf').with(
+            content: header + "# test\n# ing\n# \n# end\nnet.ipv4.ip_forward = \n",
+          )
+        end
+      end
       context 'with content set to valid testing' do
         let(:params) { { content: 'testing' } }
 
