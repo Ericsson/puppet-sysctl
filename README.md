@@ -1,70 +1,93 @@
 # puppet-sysctl
 
-## Overview
+#### Table of Contents
+
+1. [Module Description - What the module does and why it is useful](#module-description)
+1. [Setup - The basics of getting started with sysctl](#setup)
+   * [What sysctl affects](#what-sysctl-affects)
+   * [Setup requirements](#setup-requirements)
+   * [Beginning with sysctl](#beginning-with-sysctl)
+1. [Usage - Configuration options and additional functionality](#usage)
+1. [Reference - Parameter reference](#reference)
+1. [Limitations - OS compatibility, etc.](#limitations)
+1. [Development - Guide for contributing to the module](#development)
+
+## Module description
 
 Manage sysctl variable values. All changes are immediately applied, as well as
-configured to become persistent. Tested on Red Hat Enterprise Linux 6 and 7.
+configured to become persistent.
 
- * `sysctl` : Definition to manage sysctl variables by setting a value.
- * `sysctl::base`: Base class (included from the definition).
+* `sysctl`: Defined type to manage sysctl variables by setting a value.
+* `sysctl::base`: Base class (included from the defined type).
 
-For persistence to work, your Operating System needs to support looking for
-sysctl configuration inside `/etc/sysctl.d/`.
+## Setup
 
-You may optionally enable purging of the `/etc/sysctl.d/` directory, so that
-all files which are not (or no longer) managed by this module will be removed.
+### What sysctl affects
 
-Beware that for the purge to work, you need to either have at least one
-sysctl definition call left for the node, or include `sysctl::base` manually.
+* One file per variable in `/etc/sysctl.d/`.
+* The `/etc/sysctl.d/` directory itself, which can optionally be purged.
+* The few original settings in `/etc/sysctl.conf`: the value is also replaced
+  there, so that running `sysctl -p` does not revert a change made by Puppet.
 
-You may also force a value to `ensure => absent`, which will always work.
+### Setup requirements
 
-For the few original settings in the main `/etc/sysctl.conf` file, the value is
-also replaced so that running `sysctl -p` doesn't revert any change made by
-puppet.
+This module requires `puppetlabs/stdlib` (see `metadata.json` for the
+supported versions). For persistence to work, the operating system needs to
+support looking for sysctl configuration inside `/etc/sysctl.d/`.
 
-## Examples
+### Beginning with sysctl
 
-Enable IP forwarding globally :
+Declare a `sysctl` resource. The `sysctl::base` class is included
+automatically.
+
 ```puppet
 sysctl { 'net.ipv4.ip_forward': value => '1' }
 ```
 
-Set a value for maximum number of connections per UNIX socket :
+## Usage
+
+Set a value for maximum number of connections per UNIX socket:
+
 ```puppet
 sysctl { 'net.core.somaxconn': value => '65536' }
 ```
 
-Make sure we don't have any explicit value set for swappiness, typically
-because it was set at some point but no longer needs to be. The original
-value for existing nodes won't be reset until the next reboot :
+Make sure there is no explicit value set for swappiness, typically because it
+was set at some point but no longer needs to be. The original value for
+existing nodes is not reset until the next reboot:
+
 ```puppet
 sysctl { 'vm.swappiness': ensure => absent }
 ```
 
-If the order in which the files get applied is important, you can set it by
-using a file name prefix, which could also be set globally from `site.pp` :
+If the order in which the files get applied is important, set it with a file
+name prefix, which can also be set globally from `site.pp`:
+
 ```puppet
 Sysctl { prefix => '60' }
 ```
 
-To enable purging of settings, you can use hiera to set the `sysctl::base`
-`$purge` parameter :
+### Purging
+
+You may optionally enable purging of the `/etc/sysctl.d/` directory, so that
+all files which are not (or no longer) managed by this module are removed.
+For the purge to work, the node needs at least one `sysctl` resource, or
+`sysctl::base` must be included manually. Forcing a value to
+`ensure => absent` always works.
+
 ```yaml
----
-# sysctl
 sysctl::base::purge: true
 ```
- 
-## Hiera
 
-It is also possible to manage all sysctl keys using hiera, through the
-`$values` parameter of the `sysctl::base` class. If sysctl values are spread
-across different hiera locations, it's also possible to merge all of them
-instead of having only the last one applied, by setting the
-`$hiera_merge_values` parameter to true.
+### Hiera
+
+All sysctl keys can be managed from Hiera through the `values` parameter of
+the `sysctl::base` class. If the values are spread across different Hiera
+levels, set `hiera_merge_values` to `true` to merge all of them instead of
+only using the first one found.
 
 ```yaml
+sysctl::base::hiera_merge_values: true
 sysctl::base::values:
   net.ipv4.ip_forward:
     value: '1'
@@ -74,20 +97,54 @@ sysctl::base::values:
     ensure: absent
 ```
 
-## Original /etc/sysctl.d entries
+### Original /etc/sysctl.d entries
 
-When purging, puppet might want to remove files from `/etc/sysctl.d/` which
-have not been created by puppet, but need to be present. It's possible to
-set the same values for the same keys using puppet, but if the file comes from
-an OS package which gets updated, it might re-appear when the package gets
-updated. To work around this issue, it's possible to simply manage an
-identical file with this module. Example :
+When purging, Puppet may want to remove files from `/etc/sysctl.d/` that were
+not created by Puppet but need to be present. Setting the same values with
+this module is not always enough: if the file comes from an OS package, it
+can re-appear when the package is updated. To work around this, manage an
+identical file with this module:
 
 ```puppet
-package { 'libvirt': ensure => installed } ->
-sysctl { 'libvirtd':
+package { 'libvirt': ensure => installed }
+-> sysctl { 'libvirtd':
   suffix => '',
   source => "puppet:///modules/${module_name}/libvirtd.sysctl",
 }
 ```
 
+## Reference
+
+This module is documented via
+[puppet-strings](https://github.com/puppetlabs/puppet-strings). See
+[REFERENCE.md](REFERENCE.md) for the full list of classes, defined types and
+all of their parameters.
+
+## Limitations
+
+This module supports Puppet 8 (`>= 8.0.0 < 9.0.0`) and `puppetlabs/stdlib`
+`>= 9.0.0 < 11.0.0`. The supported OS matrix is defined in `metadata.json`,
+and CI runs `pdk validate` and `pdk test unit`.
+
+* RedHat 8, 9, 10
+* Rocky 8, 9, 10
+* SLES 12, 15
+* Ubuntu 20.04, 22.04, 24.04
+* Debian 11, 12
+
+## Development
+
+This module is managed with [PDK](https://www.puppet.com/docs/pdk). Before
+submitting changes, run the validators and unit tests:
+
+```bash
+pdk validate
+pdk test unit
+```
+
+Keep `REFERENCE.md` in sync by regenerating it whenever parameters or their
+documentation change. Never edit it by hand:
+
+```bash
+pdk bundle exec puppet strings generate --format markdown
+```

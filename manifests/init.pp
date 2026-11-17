@@ -57,7 +57,11 @@ define sysctl (
   if $content {
     $file_content = $content
   } else {
-    $file_content = template("${module_name}/sysctl.d-file.erb")
+    $file_content = epp("${module_name}/sysctl.d-file.epp", {
+        'title'   => $title,
+        'value'   => $value,
+        'comment' => $comment,
+    })
   }
 
   if $ensure == 'present' {
